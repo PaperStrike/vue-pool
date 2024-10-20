@@ -1,0 +1,31 @@
+{
+  "name": "vue-pool",
+  "version": "0.1.0",
+  "description": "Intuitive, type safe and flexible Pool for Vue",
+  "main": "./build/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm run build:type && npm run build:js",
+    "build:type": "tsc --noCheck --emitDeclarationOnly",
+    "build:js": "esbuild src/index.ts --outdir=build --format=esm --packages=external --sourcemap --bundle --minify",
+    "lint": "eslint --ext .ts,.tsx ."
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "esbuild": "~0.24.0",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-airbnb-typescript": "^18.0.0",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "pinia": "^2.2.4",
+    "typescript": "^5.6.3",
+    "vue": "^3.5.10"
+  },
+  "peerDependencies": {
+    "pinia": "^2.0.0",
+    "vue": "^3.0.0"
+  }
+}
