@@ -80,12 +80,14 @@ export function createRootPool<Id extends string, S extends StateTree = {}, G ex
         return handle.store;
       }
 
+      // Generate defineStore args
       const defineStoreArgs = args.slice();
-      if (typeof args[0] === 'function') {
-        const [storeSetup] = args as [(itemId: string) => unknown];
+      const [arg0] = args;
+      if (typeof arg0 === 'function') {
+        const storeSetup = arg0 as (itemId: string) => unknown;
         defineStoreArgs[0] = () => storeSetup(itemId);
-      } else if (typeof args[0] === 'object' && args[0]) {
-        const [options] = args as [DefinePoolStoreOptions<Id, S, G, A>];
+      } else if (typeof arg0 === 'object' && arg0) {
+        const options = arg0 as DefinePoolStoreOptions<Id, S, G, A>;
         const { state } = options;
         if (typeof state === 'function') {
           defineStoreArgs[0] = {
