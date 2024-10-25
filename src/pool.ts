@@ -16,7 +16,7 @@ import {
   type Store,
 } from 'pinia';
 
-export interface Pool<Id extends string = string, P = unknown, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
+export interface PoolBase<Id extends string = string, P = unknown, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
   id: Id;
   useStore: <ItemId extends string>(itemId: ItemId, param?: P) => Store<`${Id}:${ItemId}`, S, G, A>;
   releaseStore: <ItemId extends string>(itemId: ItemId) => void;
@@ -32,7 +32,7 @@ export interface StoreHandle<Id extends string = string, S extends StateTree = S
  * A root pool is a pool that manages the lifecycle of some stores.
  * It requires 1:1 use/release in-order calls. Make sure they are perfectly paired like typing brackets.
  */
-export interface RootPool<Id extends string, P, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends Pool<Id, P, S, G, A> {
+export interface RootPool<Id extends string, P, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends PoolBase<Id, P, S, G, A> {
   /** @internal */
   handles: Ref<{ [K in string]?: StoreHandle<`${Id}:${string}`, S, G, A> }>;
 }
@@ -41,7 +41,7 @@ export interface RootPool<Id extends string, P, S extends StateTree = StateTree,
  * A scoped pool is a pool that manages the lifecycle of some stores within the same scope.
  * It allows any sequence of use/release/clear calls. It will automatically clear on scope disposal.
  */
-export interface ScopedPool<Id extends string, P, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends Pool<Id, P, S, G, A> {
+export interface Pool<Id extends string, P, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends PoolBase<Id, P, S, G, A> {
   /** @internal */
   root: RootPool<Id, P, S, G, A>;
   /** @internal */
@@ -50,7 +50,7 @@ export interface ScopedPool<Id extends string, P, S extends StateTree = StateTre
 }
 
 export interface PoolDefinition<Id extends string = string, P = unknown, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
-  (): ScopedPool<Id, P, S, G, A>;
+  (): Pool<Id, P, S, G, A>;
   /** @internal */
   root: RootPool<Id, P, S, G, A>;
   id: Id;
@@ -128,7 +128,7 @@ export function definePool<Id extends string, P, SS>(poolId: Id, storeSetup: (it
 export function definePool<Id extends string, P, S extends StateTree, G extends _GettersTree<S>, A>(poolId: Id, ...args: unknown[]): PoolDefinition<Id, P, S, G, A> {
   const root = createRootPool(poolId, ...args as [DefinePoolStoreOptions<Id, P, S, G, A>]);
 
-  const usePool = (): ScopedPool<Id, P, S, G, A> => {
+  const usePool = (): Pool<Id, P, S, G, A> => {
     const cache = ref<{ [K in string]?: Store<`${Id}:${string}`, S, G, A> }>({});
 
     const clear = () => {
