@@ -4,7 +4,7 @@
   "description": "Intuitive, type safe and flexible Pool for Vue",
   "main": "./build/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "playwright test",
     "build": "npm run build:type && npm run build:js",
     "build:type": "tsc --noCheck --emitDeclarationOnly",
     "build:js": "esbuild src/index.ts --outdir=build --format=esm --packages=external --sourcemap --bundle --minify",
@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@playwright/test": "^1.48.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "esbuild": "~0.24.0",
@@ -20,6 +21,7 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-airbnb-typescript": "^18.0.0",
     "eslint-import-resolver-typescript": "^3.6.3",
+    "jest-leak-detector": "^29.7.0",
     "pinia": "^2.2.4",
     "typescript": "^5.6.3",
     "vue": "^3.5.10"

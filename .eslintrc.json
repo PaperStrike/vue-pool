@@ -22,5 +22,13 @@
       }
     }
   },
+  "overrides": [
+    {
+      "files": ["test/**/*.ts"],
+      "rules": {
+        "no-empty-pattern": "off"
+      }
+    }
+  ],
   "root": true
 }
