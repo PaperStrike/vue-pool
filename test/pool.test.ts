@@ -10,7 +10,7 @@ type GCFixtures = {
     release(): void;
     hasGC(): Promise<boolean>;
   },
-  pool: Pool<string, never, { hold: object }>,
+  pool: Pool<string, { hold: object }>,
 };
 
 const gcTest = test.extend<GCFixtures>({
