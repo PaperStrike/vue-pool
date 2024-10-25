@@ -32,7 +32,7 @@ const gcTest = test.extend<GCFixtures>({
       },
     });
   },
-  pool: async ({ scope, hold }, use) => {
+  pool: [async ({ scope, hold }, use) => {
     const usePool = definePool('gc', {
       state: () => ({ hold: hold.get()! }),
     });
@@ -41,10 +41,15 @@ const gcTest = test.extend<GCFixtures>({
     hold.release();
     await expect(hold.hasGC()).resolves.toBe(false);
     await use(pool);
-  },
+  }, { auto: true }],
 });
 
 gcTest.describe('garbage collect without leak', () => {
+  gcTest('onScopeDispose', async ({ hold, scope }) => {
+    scope.stop();
+    await expect(hold.hasGC()).resolves.toBe(true);
+  });
+
   gcTest('pool.clear()', async ({ hold, pool }) => {
     pool.clear();
     await expect(hold.hasGC()).resolves.toBe(true);
