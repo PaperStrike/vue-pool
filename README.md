@@ -107,18 +107,18 @@ post.refresh();
 
 在同一个状态池中，
 
-1. 同一个 ID 取得的 store 在被释放之前是相同的。
-2. 仅当所有组件均不再使用某一 store 时，该状态才会被释放，从内存中移除。
+1. 同一个 ID 取得的 store 状态在被销毁之前是相同的。
+2. 组件可以“释放”某个 store 状态，但组件释放不等于状态销毁。仅当所有用过的组件均释放该 store 时，该状态才会被“销毁”。
 
-组件有 3 种方式表明自己不再使用某个状态 store：
+组件有 3 种方式释放状态：
 
-1. 组件卸载，自动表明该组件不再用到任何池内状态；
-2. 主动调用状态池实例 `releaseStore(id)` 方法，表明该组件不再用到该 ID 的状态；
-3. 主动调用状态池实例 `clear()` 方法，表明该组件不再用到任何池内状态。
+1. 组件卸载，自动释放之前用到的所有状态；
+2. 主动调用状态池实例 `releaseStore(id)` 方法，释放该 ID 的状态；
+3. 主动调用状态池实例 `clear()` 方法，释放之前用到的所有状态。
 
-> 理论上来说，通过 `FinalizationRegistry` 和 `WeakRef`，可以让垃圾回收机制自动通知状态池释放不再被使用的状态。但由于这两个 API 尚未在笔者业务落地环境普及，vue-pool 未支持这种释放机制。
+> 理论上来说，通过 `FinalizationRegistry` 和 `WeakRef`，可以让垃圾回收机制自动通知状态池销毁暂存的状态。但由于这两个 API 尚未在笔者业务落地环境普及，vue-pool 未支持这种释放销毁机制。
 
-在文章列表页，我们可以在刷新时表明此页不再使用之前用到的文章资源：
+在文章列表页，我们可以在刷新时释放之前用到的文章资源：
 
 ```js
 const loadPosts = async ({ page, limit }) => {
@@ -186,9 +186,9 @@ export const usePostPool = definePool('post', {
 
 随后，文章相关的组件通过文章池 `useStore(postId).followStore` 拿到的关注状态及其动作，与关注相关的组件通过关注池 `useStore(userId)` 拿到的关注状态及其动作，就是同步统一的了。
 
-由于一篇文章的作者一般是固定的，这里文章 store 内部无需主动调用关注池的 releaseStore / clear 方法，不会导致内存泄漏。在内部实现上，类似组件卸载，文章 store 会自动在释放时告知关注池自身不再使用任何关注状态。
+由于一篇文章的作者一般是固定的，这里文章 store 内部无需主动调用关注池的 releaseStore / clear 方法，不会导致内存泄漏。在内部实现上，类似组件卸载，文章 store 会自动在销毁时释放用到的关注池状态。
 
-如果文章的作者确实可能变化，或者是组合其他一些 ID 确实常变化的状态，可以转而使用 watch + releaseStore / clear 及时释放。同样地，类似组件卸载，不论是 Option 还是 Setup 风格的 store 定义，watch / computed 等侦听会自动在 store 释放时停止，无需担心内存泄漏。
+如果文章的作者 ID 确实可能变化，或者是组合其他一些 ID 确实会变化的状态，可以转而使用 watch + releaseStore / clear 及时释放。同样地，类似组件卸载，不论是 Option 还是 Setup 风格的 store 定义，watch / computed 等侦听会自动在 store 销毁时停止，无需担心内存泄漏。
 
 ```js
 import { computed, ref } from 'vue';
