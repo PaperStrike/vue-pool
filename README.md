@@ -1,82 +1,131 @@
-# vue-pool
+# vue-pool: 不定量状态管理
 
-Intuitive, type-safe, and flexible Pool for Vue. It allows you to manage an arbitrary number of keyed similar-structure states, making it easy to sync states across different parts of your application without manual event buses or potential memory leaks.
+## 场景
 
-## ! README Work In Progress !
+假设 SPA 存在两个页面涉及同样的数据，如文章列表和文章详情，如果我们能将同一篇文章视作同一个响应式状态，便可以轻松：
 
-Outdated README content. Fix it later.
+1. 同步点赞信息：在文章详情页点赞，文章列表页的点赞状态同步更新。
+2. 节省网络请求：列表接口已获取的文章，进入详情时无需请求详情接口。即使列表接口返回的是精简信息，也可以提前渲染这部分，优化用户体验。详情页的刷新，数据也会同步到列表页上。
 
-## Features
+状态传递有以下常用方案：
 
-- **Type-safe**: Ensures type safety with TypeScript.
-- **Flexible**: Manages the lifecycle of states within a scope.
-- **Reactive**: Pool states are reactive, making it easy to sync states across components.
+1. 父子组件间：props, model, provide & inject
+2. 页面间：Pinia, Vuex, 全局事件
 
-## Installation
+文章浏览场景下，文章资源的数量是不确定的，需要及时释放不再展示的文章以免内存泄漏，而上面几种方案均未提供及时释放资源的机制：
 
-```bash
-npm install vue-pool
-```
+1. 父子组件、事件传递的状态与组件生命周期绑定，随组件创建而创建，随组件卸载而释放；
+2. Pinia, Vuex 的状态与应用生命周期相关，在第一次使用时创建，在应用卸载时释放。
 
-## Usage
+vue-pool 便为此而生，在 Pinia 的基础上，引入了一套追踪状态使用的机制，帮助释放不再需要的内存资源，致力于简化文章浏览等场景下资源数量不确定的状态管理。
 
-### Define a Pool
+当然了，我们也可以让同一篇文章在不同组件中对应不同的状态，手动通过事件 EventBus 等方式同步，但这样背离了 Vue 的响应式设计，增加了维护成本，你可以亲自试试 vue-pool，感受它带来的便利。
 
-Define a pool outside of your components, similar to how you define Pinia stores:
+## 创建
 
-```typescript
+与 Pinia 相似，使用 definePool 定义一个状态池：
+
+```js
 import { definePool } from 'vue-pool';
 
-const useThreadPool = definePool<string, boolean>('thread-pool', (key) => false);
+// 定义一个文章状态池
+// 支持 option, setup 两种 Pinia store 定义风格
+const usePostPool = definePool('post', {
+  // id 即文章 ID，用于区分不同文章资源
+  // id 从哪里来呢？马上作介绍
+  state: (id) => ({
+    id,
+    title: '',
+    content: '',
+    hasLiked: false,
+    likedCount: 0,
+  }),
+  actions: {
+    // 拉取最新数据
+    async refresh() {
+      const resp = await exampleApi.queryPost(this.id);
+      this.$patch(resp.data);
+    },
+  },
+});
 ```
 
-### Use the Pool in a Component
+## 使用
 
-Use the pool inside your components to manage states:
+在组件中，使用 usePool 生成隶属该组件的状态池实例：
 
-```typescript
-import { useThreadPool } from './path-to-your-pool-definition';
+```html
+<script setup>
+import { usePostPool } from '@/pools/post';
 
-export default {
-  setup() {
-    const threadPool = useThreadPool();
-    const followState = threadPool.use('thread-id-123');
+const postPool = usePostPool();
+</script>
+```
 
-    return {
-      followState,
-    };
-  },
+任意时机调用状态池实例的 `useStore` 方法传递文章 ID，这个 ID 便会作为 store 初始化函数的参数，返回值即为一个普通 Pinia store，下面是一组 列表页 和 详情页 的简化示例：
+
+### 列表页
+
+```js
+const loadPosts = async ({ page, limit }) => {
+  const resp = await exampleApi.queryPostList({ page, limit });
+  return resp.list.map((data) => {
+    // 类似 Pinia，同一个 ID 会返回同一个 store 实例
+    const post = postPool.useStore(post.id);
+    post.$patch(data);
+    return post;
+  });
+};
+
+const posts = ref([]);
+posts.value = await loadPosts({ page: 1, limit: 10 });
+```
+
+### 详情页
+
+在本示例中，如果列表页已经取得了这篇文章的数据，详情页会直接展示已取得的部分，随后调用详情接口进行刷新，刷新的数据也会同步到列表页上。
+
+```js
+const { id } = defineProps({
+  id: String,
+});
+
+const post = postPool.useStore(id);
+post.refresh();
+```
+
+我们也可以设计 `initIfEmpty` 之类的方法，通过 title 判空或维护 initialized 字段等方式，在列表页已经载入时彻底省去详情接口请求。
+
+## 释放
+
+在同一个状态池中，
+
+1. 同一个 ID 取得的 store 在被释放之前是相同的。
+2. 仅当所有组件均不再使用某一 store 时，该状态才会被释放，从内存中移除。
+
+组件有 3 种方式表明自己不再使用某个状态 store：
+
+1. 组件卸载，自动表明该组件不再用到任何池内状态；
+2. 主动调用状态池实例 `releaseStore(id)` 方法，表明该组件不再用到该 ID 的状态；
+3. 主动调用状态池实例 `clear()` 方法，表明该组件不再用到任何池内状态。
+
+> 理论上来说，通过 `FinalizationRegistry` 和 `WeakRef`，可以让垃圾回收机制自动通知状态池释放不再被使用的状态。但由于这两个 API 尚未在笔者业务落地环境普及，vue-pool 未支持这种释放机制。
+
+在文章列表页，我们可以在刷新时表明此页不再使用之前用到的文章资源：
+
+```js
+const loadPosts = async ({ page, limit }) => {
+  const resp = await exampleApi.queryPostList({ page, limit });
+
+  // 刷新时，释放之前引用的文章
+  if (page === 1) {
+    postPool.clear();
+  }
+
+  return resp.list.map((data) => {
+    const post = postPool.useStore(post.id);
+    post.$patch(data);
+    return post;
+  });
 };
 ```
-
-## Example Use Case
-
-When writing a forum SPA webpage, you might have two APIs: one for the thread list and one for thread details. You may have two pages showing the same state, such as the author follow state. With `vue-pool`, you can easily sync this state across these pages without manual event buses.
-
-### Without `vue-pool`
-
-- Refetch the details on page show, which may create a new request and usually make no change.
-- Use EventBuses to emit and listen to the change state in each page, which can lead to potential memory leaks if listeners are not removed properly.
-
-### With `vue-pool`
-
-- Create a pool with the thread ID as the key and the follow states as values.
-- The pool states are reactive, so you don't need any manual event buses.
-
-```typescript
-const useFollowPool = definePool<string, boolean>('follow-pool', (key) => false);
-
-// In component A
-const followPool = useFollowPool();
-const followStateA = followPool.use('thread-id-123');
-
-// In component B
-const followPool = useFollowPool();
-const followStateB = followPool.use('thread-id-123');
-
-// followStateA and followStateB are automatically synced
-```
-
-## License
-
-This project is licensed under the ISC License.
