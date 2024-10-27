@@ -21,10 +21,10 @@ import {
   type Store,
 } from 'pinia';
 
-export interface PoolBase<Id extends string = string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
-  id: Id;
-  useStore: <ItemId extends string>(itemId: ItemId) => Store<`${Id}:${ItemId}`, S, G, A>;
-  releaseStore: <ItemId extends string>(itemId: ItemId) => void;
+export interface PoolBase<PoolId extends string = string, ItemId extends string = string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
+  poolId: PoolId;
+  useStore: (itemId: ItemId) => Store<`${PoolId}:${ItemId}`, S, G, A>;
+  releaseStore: (itemId: ItemId) => void;
 }
 
 export interface StoreHandle<Id extends string = string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
@@ -37,51 +37,51 @@ export interface StoreHandle<Id extends string = string, S extends StateTree = S
  * A root pool is a pool that manages the lifecycle of some stores.
  * It requires 1:1 use/release in-order calls. Make sure they are perfectly paired like typing brackets.
  */
-export interface RootPool<Id extends string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends PoolBase<Id, S, G, A> {
+export interface RootPool<PoolId extends string, ItemId extends string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends PoolBase<PoolId, ItemId, S, G, A> {
   /** @internal */
-  handles: Ref<{ [K in string]?: StoreHandle<`${Id}:${string}`, S, G, A> }>;
+  handles: Ref<{ [K in ItemId]?: StoreHandle<`${PoolId}:${K}`, S, G, A> }>;
 }
 
 /**
  * A scoped pool is a pool that manages the lifecycle of some stores within the same scope.
  * It allows any sequence of use/release/clear calls. It will automatically clear on scope disposal.
  */
-export interface Pool<Id extends string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends PoolBase<Id, S, G, A> {
+export interface Pool<PoolId extends string, ItemId extends string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends PoolBase<PoolId, ItemId, S, G, A> {
   /** @internal */
-  root: RootPool<Id, S, G, A>;
+  root: RootPool<PoolId, ItemId, S, G, A>;
   /** @internal */
-  cache: Ref<{ [K in string]?: Store<`${Id}:${string}`, S, G, A> }>;
+  cache: Ref<{ [K in ItemId]?: Store<`${PoolId}:${K}`, S, G, A> }>;
   clear: () => void;
 }
 
-export interface PoolDefinition<Id extends string = string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
-  (): Pool<Id, S, G, A>;
+export interface PoolDefinition<PoolId extends string = string, ItemId extends string = string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
+  (): Pool<PoolId, ItemId, S, G, A>;
+  poolId: PoolId;
   /** @internal */
-  root: RootPool<Id, S, G, A>;
-  id: Id;
+  root: RootPool<PoolId, ItemId, S, G, A>;
 }
 
-export type DefinePoolOptions<Id extends string, S extends StateTree, G, A> = Omit<DefineStoreOptions<`${Id}:${string}`, S, G, A>, 'state'> & {
-  state?: (itemId: string) => S;
+export type DefinePoolOptions<PoolId extends string, ItemId extends string, S extends StateTree, G, A> = Omit<DefineStoreOptions<`${PoolId}:${ItemId}`, S, G, A>, 'state'> & {
+  state?: (itemId: ItemId) => S;
 };
 
-export type DefineSetupPoolOptions<Id extends string, S extends StateTree, G, A> = DefineSetupStoreOptions<`${Id}:${string}`, S, G, A>;
+export type DefineSetupPoolOptions<PoolId extends string, ItemId extends string, S extends StateTree, G, A> = DefineSetupStoreOptions<`${PoolId}:${ItemId}`, S, G, A>;
 
 /** @internal */
-export function createRootPool<Id extends string, S extends StateTree = {}, G extends _GettersTree<S> = {}, A = {}>(poolId: Id, options: Omit<DefinePoolOptions<Id, S, G, A>, 'id'>): RootPool<Id, S, G, A>;
-export function createRootPool<Id extends string, SS>(poolId: Id, storeSetup: (itemId: string) => SS, options?: DefineSetupPoolOptions<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>): RootPool<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>;
-export function createRootPool<Id extends string, S extends StateTree, G extends _GettersTree<S>, A>(poolId: Id, ...args: unknown[]): RootPool<Id, S, G, A> {
+export function createRootPool<PoolId extends string, ItemId extends string, S extends StateTree = {}, G extends _GettersTree<S> = {}, A = {}>(poolId: PoolId, options: Omit<DefinePoolOptions<PoolId, ItemId, S, G, A>, 'id'>): RootPool<PoolId, ItemId, S, G, A>;
+export function createRootPool<PoolId extends string, ItemId extends string, SS>(poolId: PoolId, storeSetup: (itemId: string) => SS, options?: DefineSetupPoolOptions<PoolId, ItemId, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>): RootPool<PoolId, ItemId, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>;
+export function createRootPool<PoolId extends string, ItemId extends string, S extends StateTree, G extends _GettersTree<S>, A>(poolId: PoolId, ...args: unknown[]): RootPool<PoolId, ItemId, S, G, A> {
   if (poolId.includes(':')) {
     throw new Error('Pool id cannot contain a colon ":"');
   }
 
-  const handles = ref<{ [K in string]?: StoreHandle<`${Id}:${string}`, S, G, A> }>({});
+  const handles: RootPool<PoolId, ItemId, S, G, A>['handles'] = ref({});
 
   return {
-    id: poolId,
+    poolId,
     handles,
     useStore: (itemId) => {
-      const handle = handles.value[itemId] as StoreHandle<`${Id}:${typeof itemId}`, S, G, A> | undefined;
+      const handle = handles.value[itemId];
       if (handle) {
         handle.count += 1;
         return handle.store;
@@ -94,7 +94,7 @@ export function createRootPool<Id extends string, S extends StateTree, G extends
         const storeSetup = arg0 as (itemId: string) => unknown;
         defineStoreArgs[0] = () => storeSetup(itemId);
       } else if (typeof arg0 === 'object' && arg0) {
-        const options = arg0 as DefinePoolOptions<Id, S, G, A>;
+        const options = arg0 as DefinePoolOptions<PoolId, ItemId, S, G, A>;
         const { state } = options;
         if (typeof state === 'function') {
           defineStoreArgs[0] = {
@@ -104,7 +104,7 @@ export function createRootPool<Id extends string, S extends StateTree, G extends
         }
       }
 
-      const storeDefinition = defineStore(`${poolId}:${itemId}`, ...defineStoreArgs as [Omit<DefineStoreOptions<`${Id}:${typeof itemId}`, S, G, A>, 'id'>]);
+      const storeDefinition = defineStore(`${poolId}:${itemId}`, ...defineStoreArgs as [Omit<DefineStoreOptions<`${PoolId}:${typeof itemId}`, S, G, A>, 'id'>]);
       const store = storeDefinition();
       const pinia = getActivePinia()!;
       handles.value[itemId] = {
@@ -115,7 +115,7 @@ export function createRootPool<Id extends string, S extends StateTree, G extends
       return store;
     },
     releaseStore: (itemId) => {
-      const handle = handles.value[itemId] as StoreHandle<`${Id}:${typeof itemId}`, S, G, A> | undefined;
+      const handle = handles.value[itemId];
       if (!handle) return;
 
       handle.count -= 1;
@@ -130,17 +130,17 @@ export function createRootPool<Id extends string, S extends StateTree, G extends
   };
 }
 
-export function definePool<Id extends string, S extends StateTree = {}, G extends _GettersTree<S> = {}, A = {}>(poolId: Id, options: Omit<DefinePoolOptions<Id, S, G, A>, 'id'>): PoolDefinition<Id, S, G, A>;
-export function definePool<Id extends string, SS>(poolId: Id, storeSetup: (itemId: string) => SS, options?: DefineSetupPoolOptions<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>): PoolDefinition<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>;
-export function definePool<Id extends string, S extends StateTree, G extends _GettersTree<S>, A>(poolId: Id, ...args: unknown[]): PoolDefinition<Id, S, G, A> {
-  const root = createRootPool(poolId, ...args as [DefinePoolOptions<Id, S, G, A>]);
+export function definePool<PoolId extends string, ItemId extends string, S extends StateTree = {}, G extends _GettersTree<S> = {}, A = {}>(poolId: PoolId, options: Omit<DefinePoolOptions<PoolId, ItemId, S, G, A>, 'id'>): PoolDefinition<PoolId, ItemId, S, G, A>;
+export function definePool<PoolId extends string, ItemId extends string, SS>(poolId: PoolId, storeSetup: (itemId: string) => SS, options?: DefineSetupPoolOptions<PoolId, ItemId, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>): PoolDefinition<PoolId, ItemId, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>;
+export function definePool<PoolId extends string, ItemId extends string, S extends StateTree, G extends _GettersTree<S>, A>(poolId: PoolId, ...args: unknown[]): PoolDefinition<PoolId, ItemId, S, G, A> {
+  const root = createRootPool(poolId, ...args as [DefinePoolOptions<PoolId, ItemId, S, G, A>]);
 
-  const usePool = (): Pool<Id, S, G, A> => {
-    const cache = ref<{ [K in string]?: Store<`${Id}:${string}`, S, G, A> }>({});
+  const usePool = (): Pool<PoolId, ItemId, S, G, A> => {
+    const cache: Pool<PoolId, ItemId, S, G, A>['cache'] = ref({});
 
     const clear = () => {
       Object.keys(cache.value).forEach((key) => {
-        root.releaseStore(key);
+        root.releaseStore(key as ItemId);
       });
       cache.value = {};
     };
@@ -148,11 +148,11 @@ export function definePool<Id extends string, S extends StateTree, G extends _Ge
     onScopeDispose(clear);
 
     return {
-      id: poolId,
+      poolId,
       root,
       cache,
       useStore: (itemId) => {
-        const cachedStore = cache.value[itemId] as Store<`${Id}:${typeof itemId}`, S, G, A> | undefined;
+        const cachedStore = cache.value[itemId];
         if (cachedStore) {
           return cachedStore;
         }
@@ -172,8 +172,8 @@ export function definePool<Id extends string, S extends StateTree, G extends _Ge
   };
 
   return Object.assign(usePool, {
+    poolId,
     root,
-    id: poolId,
   });
 }
 
