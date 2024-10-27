@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable max-len */
-import { onScopeDispose, ref, type Ref } from 'vue';
+import {
+  markRaw,
+  onScopeDispose,
+  ref,
+  type Ref,
+} from 'vue';
 import {
   defineStore,
   getActivePinia,
@@ -103,7 +108,7 @@ export function createRootPool<Id extends string, S extends StateTree, G extends
       handles.value[itemId] = {
         count: 1,
         store,
-        pinia,
+        pinia: markRaw(pinia),
       };
       return store;
     },
