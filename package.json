@@ -1,6 +1,6 @@
 {
   "name": "vue-pool",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Intuitive, type safe and flexible Pool for Vue",
   "main": "./build/index.js",
   "exports": {
