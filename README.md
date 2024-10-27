@@ -136,3 +136,93 @@ const loadPosts = async ({ page, limit }) => {
   });
 };
 ```
+
+## 组合
+
+假设页面顶栏存在一个鼠标悬浮时显示的关注列表，我们定义一个关注池与文章池组合：
+
+```js
+import { computed, ref } from 'vue';
+import { definePool } from 'vue-pool';
+
+// 关注池
+export const useFollowPool = definePool('follow', {
+  state: (userId) => ({
+    userId,
+    isFollowed: false,
+  }),
+  actions: {
+    async startFollow() {
+      await exampleApi.follow(this.userId);
+      this.isFollowed = true;
+    },
+    async cancelFollow() {
+      await exampleApi.cancelFollow(this.userId);
+      this.isFollowed = false;
+    },
+  },
+});
+
+// 文章池
+export const usePostPool = definePool('post', {
+  state: (id) => {
+    const followPool = useFollowPool();
+    const authorId = ref('');
+    return {
+      id,
+      authorId,
+      title: '',
+      content: '',
+      hasLiked: false,
+      likedCount: 0,
+      followStore: computed(() => followPool.useStore(authorId.value)),
+    };
+  },
+  actions: {
+    // ...
+  },
+});
+```
+
+随后，文章相关的组件通过文章池 `useStore(postId).followStore` 拿到的关注状态及其动作，与关注相关的组件通过关注池 `useStore(userId)` 拿到的关注状态及其动作，就是同步统一的了。
+
+由于一篇文章的作者一般是固定的，这里文章 store 内部无需主动调用关注池的 releaseStore / clear 方法，不会导致内存泄漏。在内部实现上，类似组件卸载，文章 store 会自动在释放时告知关注池自身不再使用任何关注状态。
+
+如果文章的作者确实可能变化，或者是组合其他一些 ID 确实常变化的状态，可以转而使用 watch + releaseStore / clear 及时释放。同样地，类似组件卸载，不论是 Option 还是 Setup 风格的 store 定义，watch / computed 等侦听会自动在 store 释放时停止，无需担心内存泄漏。
+
+```js
+import { computed, ref } from 'vue';
+import { definePool } from 'vue-pool';
+import { useFollowPool } from '@/pools/follow';
+
+// 文章池
+export const usePostPool = definePool('post', {
+  state: (id) => {
+    const followPool = useFollowPool();
+    const authorId = ref('');
+    const followStore = ref();
+
+    // 不使用 computed / watchEffect，避免错误追踪依赖
+    watch(() => authorId.value, (newAuthorId, oldAuthorId) => {
+      // 也可以直接 followPool.clear();
+      if (oldAuthorId) {
+        followPool.releaseStore(oldAuthorId);
+      }
+      followStore.value = followPool.useStore(newAuthorId);
+    });
+
+    return {
+      id,
+      authorId,
+      title: '',
+      content: '',
+      hasLiked: false,
+      likedCount: 0,
+      followStore,
+    };
+  },
+  actions: {
+    // ...
+  },
+});
+```
