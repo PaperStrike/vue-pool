@@ -3,15 +3,27 @@
   "version": "0.1.0",
   "description": "Intuitive, type safe and flexible Pool for Vue",
   "main": "./build/index.js",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "test": "playwright test",
     "build": "npm run build:type && npm run build:js",
     "build:type": "tsc --noCheck --emitDeclarationOnly",
     "build:js": "esbuild src/index.ts --outdir=build --format=esm --packages=external --sourcemap --bundle --minify",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "prepare": "npm run build"
   },
-  "author": "",
+  "repository": "github:PaperStrike/vue-pool",
   "license": "ISC",
+  "files": [
+    "build",
+    "CHANGELOG.*"
+  ],
   "devDependencies": {
     "@playwright/test": "^1.48.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
