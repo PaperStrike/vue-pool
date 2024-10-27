@@ -61,13 +61,15 @@ export interface PoolDefinition<Id extends string = string, S extends StateTree 
   id: Id;
 }
 
-export type DefinePoolStoreOptions<Id extends string, S extends StateTree, G, A> = Omit<DefineStoreOptions<Id, S, G, A>, 'state'> & {
+export type DefinePoolOptions<Id extends string, S extends StateTree, G, A> = Omit<DefineStoreOptions<`${Id}:${string}`, S, G, A>, 'state'> & {
   state?: (itemId: string) => S;
 };
 
+export type DefineSetupPoolOptions<Id extends string, S extends StateTree, G, A> = DefineSetupStoreOptions<`${Id}:${string}`, S, G, A>;
+
 /** @internal */
-export function createRootPool<Id extends string, S extends StateTree = {}, G extends _GettersTree<S> = {}, A = {}>(poolId: Id, options: Omit<DefinePoolStoreOptions<Id, S, G, A>, 'id'>): RootPool<Id, S, G, A>;
-export function createRootPool<Id extends string, SS>(poolId: Id, storeSetup: (itemId: string) => SS, options?: DefineSetupStoreOptions<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>): RootPool<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>;
+export function createRootPool<Id extends string, S extends StateTree = {}, G extends _GettersTree<S> = {}, A = {}>(poolId: Id, options: Omit<DefinePoolOptions<Id, S, G, A>, 'id'>): RootPool<Id, S, G, A>;
+export function createRootPool<Id extends string, SS>(poolId: Id, storeSetup: (itemId: string) => SS, options?: DefineSetupPoolOptions<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>): RootPool<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>;
 export function createRootPool<Id extends string, S extends StateTree, G extends _GettersTree<S>, A>(poolId: Id, ...args: unknown[]): RootPool<Id, S, G, A> {
   if (poolId.includes(':')) {
     throw new Error('Pool id cannot contain a colon ":"');
@@ -92,7 +94,7 @@ export function createRootPool<Id extends string, S extends StateTree, G extends
         const storeSetup = arg0 as (itemId: string) => unknown;
         defineStoreArgs[0] = () => storeSetup(itemId);
       } else if (typeof arg0 === 'object' && arg0) {
-        const options = arg0 as DefinePoolStoreOptions<Id, S, G, A>;
+        const options = arg0 as DefinePoolOptions<Id, S, G, A>;
         const { state } = options;
         if (typeof state === 'function') {
           defineStoreArgs[0] = {
@@ -102,7 +104,7 @@ export function createRootPool<Id extends string, S extends StateTree, G extends
         }
       }
 
-      const storeDefinition = defineStore(`${poolId}:${itemId}`, ...defineStoreArgs as [Omit<DefineStoreOptions<Id, S, G, A>, 'id'>]);
+      const storeDefinition = defineStore(`${poolId}:${itemId}`, ...defineStoreArgs as [Omit<DefineStoreOptions<`${Id}:${typeof itemId}`, S, G, A>, 'id'>]);
       const store = storeDefinition();
       const pinia = getActivePinia()!;
       handles.value[itemId] = {
@@ -128,10 +130,10 @@ export function createRootPool<Id extends string, S extends StateTree, G extends
   };
 }
 
-export function definePool<Id extends string, S extends StateTree = {}, G extends _GettersTree<S> = {}, A = {}>(poolId: Id, options: Omit<DefinePoolStoreOptions<Id, S, G, A>, 'id'>): PoolDefinition<Id, S, G, A>;
-export function definePool<Id extends string, SS>(poolId: Id, storeSetup: (itemId: string) => SS, options?: DefineSetupStoreOptions<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>): PoolDefinition<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>;
+export function definePool<Id extends string, S extends StateTree = {}, G extends _GettersTree<S> = {}, A = {}>(poolId: Id, options: Omit<DefinePoolOptions<Id, S, G, A>, 'id'>): PoolDefinition<Id, S, G, A>;
+export function definePool<Id extends string, SS>(poolId: Id, storeSetup: (itemId: string) => SS, options?: DefineSetupPoolOptions<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>): PoolDefinition<Id, _ExtractStateFromSetupStore<SS>, _ExtractGettersFromSetupStore<SS>, _ExtractActionsFromSetupStore<SS>>;
 export function definePool<Id extends string, S extends StateTree, G extends _GettersTree<S>, A>(poolId: Id, ...args: unknown[]): PoolDefinition<Id, S, G, A> {
-  const root = createRootPool(poolId, ...args as [DefinePoolStoreOptions<Id, S, G, A>]);
+  const root = createRootPool(poolId, ...args as [DefinePoolOptions<Id, S, G, A>]);
 
   const usePool = (): Pool<Id, S, G, A> => {
     const cache = ref<{ [K in string]?: Store<`${Id}:${string}`, S, G, A> }>({});
