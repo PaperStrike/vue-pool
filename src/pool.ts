@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable max-len */
 import {
-  markRaw,
   onScopeDispose,
   ref,
   type Ref,
@@ -111,7 +110,7 @@ export function createRootPool<PoolId extends string, ItemId extends string, S e
       handles.value[itemId] = {
         count: 1,
         store,
-        pinia: markRaw(pinia),
+        pinia,
       };
       return store;
     },
