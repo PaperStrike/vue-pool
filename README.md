@@ -1,6 +1,6 @@
 # vue-pool
 
-一种针对数量可变的跨组件状态的管理方案。
+一种容量可变的状态管理方案，尝试简化文章浏览等场景下资源数量不确定的跨组件数据同步。
 
 ## 场景
 
@@ -11,7 +11,7 @@
 
 状态传递有以下常用方案：
 
-1. 父子组件间：props, model, provide & inject
+1. 父子组件间：props, model, provide & inject, 事件
 2. 页面间：Pinia, Vuex, 全局事件
 
 文章浏览场景下，文章资源的数量是不确定的，需要及时释放不再展示的文章以免内存泄漏，而上面几种方案均未提供合适的场景支持：
@@ -26,15 +26,16 @@ vue-pool 便为此而生，在 Pinia 的基础上，引入了一套追踪状态�
 
 ## 创建
 
-与 Pinia 相似，使用 definePool 定义一个状态池：
+与 Pinia defineStore 相似，使用 definePool 定义一个状态池：
 
-```js
+```javascript
 import { definePool } from 'vue-pool';
 
 // 定义一个文章状态池
 // 支持 option, setup 两种 Pinia store 定义风格
 const usePostPool = definePool('post', {
-  // id 即文章 ID，用于区分不同文章资源
+  // 初始化比 Pinia 多了一个参数
+  // id 作为文章 ID，用于区分不同文章资源
   // id 从哪里来呢？马上作介绍
   state: (id) => ({
     id,
@@ -73,9 +74,9 @@ const postPool = usePostPool();
 
 任意时机调用状态池实例的 `useStore` 方法传递文章 ID，这个 ID 便会作为 store 初始化函数的参数，返回值即为一个普通 Pinia store，下面是一组 列表页 和 详情页 的简化示例：
 
-### 列表页
+### 列表页示例
 
-```js
+```javascript
 const loadPosts = async ({ page, limit }) => {
   const resp = await exampleApi.queryPostList({ page, limit });
   return resp.list.map((data) => {
@@ -87,20 +88,30 @@ const loadPosts = async ({ page, limit }) => {
 };
 
 const posts = ref([]);
-posts.value = await loadPosts({ page: 1, limit: 10 });
+loadPosts({ page: 1, limit: 10 })
+  .then((data) => posts.value = data);
 ```
 
-### 详情页
+```html
+<template v-for="post in posts" :key="post.id">
+  <!-- 略：列表项展示 -->
+</template>
+```
+
+### 详情页示例
 
 在本示例中，如果列表页已经取得了这篇文章的数据，详情页会直接展示已取得的部分，随后调用详情接口进行刷新，刷新的数据也会同步到列表页上。
 
-```js
-const { id } = defineProps({
-  id: String,
-});
+```javascript
+const { id } = defineProps({ id: String });
 
 const post = postPool.useStore(id);
 post.refresh();
+```
+
+```html
+<h2>{{ post.title }}</h2>
+<!-- 略：其余详情展示 -->
 ```
 
 我们也可以设计 `initIfEmpty` 之类的方法，通过 title 判空或维护 initialized 字段等方式，在列表页已经载入时彻底省去详情接口请求。
@@ -122,7 +133,7 @@ post.refresh();
 
 在文章列表页，我们可以在刷新时释放之前用到的文章资源：
 
-```js
+```javascript
 const loadPosts = async ({ page, limit }) => {
   const resp = await exampleApi.queryPostList({ page, limit });
 
@@ -145,12 +156,15 @@ const loadPosts = async ({ page, limit }) => {
 
 假设页面顶栏存在一个鼠标悬浮时显示的关注列表，我们定义一个关注池与文章池组合：
 
-```js
+> 资源区分维度相同，可复用同一个池子。同样通过文章 ID 区分的边栏热门列表，复用文章池即可。
+
+```javascript
 import { computed, ref } from 'vue';
 import { definePool } from 'vue-pool';
 
 // 关注池
 export const useFollowPool = definePool('follow', {
+  // 以用户 ID 区分
   state: (userId) => ({
     userId,
     isFollowed: false,
@@ -169,6 +183,7 @@ export const useFollowPool = definePool('follow', {
 
 // 文章池
 export const usePostPool = definePool('post', {
+  // 以文章 ID 区分
   state: (id) => {
     const followPool = useFollowPool();
     const authorId = ref('');
@@ -179,6 +194,7 @@ export const usePostPool = definePool('post', {
       content: '',
       hasLiked: false,
       likedCount: 0,
+      // 组合关注池，取到对作者的关注状态
       followStore: computed(() => followPool.useStore(authorId.value)),
     };
   },
@@ -190,11 +206,11 @@ export const usePostPool = definePool('post', {
 
 随后，文章相关的组件通过文章池 `useStore(postId).followStore` 拿到的关注状态及其动作，与关注相关的组件通过关注池 `useStore(userId)` 拿到的关注状态及其动作，就是同步统一的了。
 
-由于一篇文章的作者一般是固定的，这里文章 store 内部无需主动调用关注池的 releaseStore / clear 方法，不会导致内存泄漏。在内部实现上，类似组件卸载，文章 store 会自动在销毁时释放用到的关注池状态。
+由于一篇文章的作者一般是固定的，这里文章 store 内部无需主动调用关注池的 releaseStore \/ clear 方法，不会导致内存泄漏。在内部实现上，类似组件卸载，文章 store 会自动在销毁时释放用到的关注池状态。
 
-如果文章的作者 ID 确实可能变化，或者是组合其他一些 ID 确实会变化的状态，可以转而使用 watch + releaseStore / clear 及时释放。同样地，类似组件卸载，不论是 option 还是 setup 风格的 store 定义，watch / computed 等侦听会自动在 store 销毁时停止，无需担心内存泄漏。
+如果文章的作者 ID 确实经常变化，或者是组合其他一些 ID 确实常会变化的状态，可以转而使用 watch + releaseStore \/ clear 及时释放。同样地，类似组件卸载，不论是 option 还是 setup 风格的 store 定义，watch \/ computed 等侦听会自动在 store 销毁时停止，无需担心内存泄漏。
 
-```js
+```javascript
 import { computed, ref } from 'vue';
 import { definePool } from 'vue-pool';
 import { useFollowPool } from '@/pools/follow';
@@ -206,7 +222,7 @@ export const usePostPool = definePool('post', {
     const authorId = ref('');
     const followStore = ref();
 
-    // 不使用 computed / watchEffect，避免错误追踪依赖
+    // 由于涉及其他状态释放，computed / watchEffect 容易错误追踪依赖
     watch(() => authorId.value, (newAuthorId, oldAuthorId) => {
       // 也可以直接 followPool.clear();
       if (oldAuthorId) {
