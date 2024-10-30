@@ -21,12 +21,6 @@ import {
   type Store,
 } from 'pinia';
 
-export interface PoolBase<PoolId extends string = string, ItemId extends string = string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
-  poolId: PoolId;
-  useStore: (itemId: ItemId) => Store<`${PoolId}:${ItemId}`, S, G, A>;
-  releaseStore: (itemId: ItemId) => void;
-}
-
 export interface StoreHandle<Id extends string = string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
   count: number;
   store: Store<Id, S, G, A>;
@@ -37,25 +31,33 @@ export interface StoreHandle<Id extends string = string, S extends StateTree = S
  * A root pool is a pool that manages the lifecycle of some stores.
  * It requires 1:1 use/release in-order calls. Make sure they are perfectly paired like typing brackets.
  */
-export interface RootPool<PoolId extends string, ItemId extends string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends PoolBase<PoolId, ItemId, S, G, A> {
+export interface RootPool<PoolId extends string, ItemId extends string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
   /** @internal */
   handles: Ref<{ [K in ItemId]?: StoreHandle<`${PoolId}:${K}`, S, G, A> }>;
+  poolId: PoolId;
+  useStore: (itemId: ItemId, pinia: Pinia) => Store<`${PoolId}:${ItemId}`, S, G, A>;
+  releaseStore: (itemId: ItemId) => void;
 }
 
 /**
  * A scoped pool is a pool that manages the lifecycle of some stores within the same scope.
  * It allows any sequence of use/release/clear calls. It will automatically clear on scope disposal.
  */
-export interface Pool<PoolId extends string, ItemId extends string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> extends PoolBase<PoolId, ItemId, S, G, A> {
+export interface Pool<PoolId extends string, ItemId extends string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
+  poolId: PoolId;
   /** @internal */
   root: RootPool<PoolId, ItemId, S, G, A>;
   /** @internal */
+  pinia: Pinia;
+  /** @internal */
   cache: Ref<{ [K in ItemId]?: Store<`${PoolId}:${K}`, S, G, A> }>;
+  useStore: (itemId: ItemId) => Store<`${PoolId}:${ItemId}`, S, G, A>;
+  releaseStore: (itemId: ItemId) => void;
   clear: () => void;
 }
 
 export interface PoolDefinition<PoolId extends string = string, ItemId extends string = string, S extends StateTree = StateTree, G = _GettersTree<S>, A = _ActionsTree> {
-  (): Pool<PoolId, ItemId, S, G, A>;
+  (pinia?: Pinia | null | undefined): Pool<PoolId, ItemId, S, G, A>;
   poolId: PoolId;
   /** @internal */
   root: RootPool<PoolId, ItemId, S, G, A>;
@@ -80,7 +82,7 @@ export function createRootPool<PoolId extends string, ItemId extends string, S e
   return {
     poolId,
     handles,
-    useStore: (itemId) => {
+    useStore: (itemId, pinia) => {
       const handle = handles.value[itemId];
       if (handle) {
         handle.count += 1;
@@ -105,8 +107,7 @@ export function createRootPool<PoolId extends string, ItemId extends string, S e
       }
 
       const storeDefinition = defineStore(`${poolId}:${itemId}`, ...defineStoreArgs as [Omit<DefineStoreOptions<`${PoolId}:${typeof itemId}`, S, G, A>, 'id'>]);
-      const store = storeDefinition();
-      const pinia = getActivePinia()!;
+      const store = storeDefinition(pinia);
       handles.value[itemId] = {
         count: 1,
         store,
@@ -135,7 +136,12 @@ export function definePool<PoolId extends string, ItemId extends string, SS>(poo
 export function definePool<PoolId extends string, ItemId extends string, S extends StateTree, G extends _GettersTree<S>, A>(poolId: PoolId, ...args: unknown[]): PoolDefinition<PoolId, ItemId, S, G, A> {
   const root = createRootPool(poolId, ...args as [DefinePoolOptions<PoolId, ItemId, S, G, A>]);
 
-  const usePool = (): Pool<PoolId, ItemId, S, G, A> => {
+  const usePool = (customPinia?: Pinia | null | undefined): Pool<PoolId, ItemId, S, G, A> => {
+    const pinia = customPinia || getActivePinia();
+    if (!pinia) {
+      throw new Error('Pinia instance not found');
+    }
+
     const cache: Pool<PoolId, ItemId, S, G, A>['cache'] = ref({});
 
     const clear = () => {
@@ -150,6 +156,7 @@ export function definePool<PoolId extends string, ItemId extends string, S exten
     return {
       poolId,
       root,
+      pinia,
       cache,
       useStore: (itemId) => {
         const cachedStore = cache.value[itemId];
@@ -157,7 +164,7 @@ export function definePool<PoolId extends string, ItemId extends string, S exten
           return cachedStore;
         }
 
-        const store = root.useStore(itemId);
+        const store = root.useStore(itemId, pinia);
         cache.value[itemId] = store;
         return store;
       },
