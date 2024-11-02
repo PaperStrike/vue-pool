@@ -1,5 +1,7 @@
 # vue-pool
 
+[![npm Package](https://img.shields.io/npm/v/vue-pool?logo=npm)](https://www.npmjs.com/package/vue-pool "vue-pool")
+
 一种容量可变的状态管理方案，尝试简化文章浏览等场景下资源数量不确定的跨组件数据同步。
 
 ## 场景
