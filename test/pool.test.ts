@@ -74,7 +74,7 @@ gcTest.describe('garbage collect without leak', () => {
 
   gcTest('rootPool.useStore() then *.releaseStore()', async ({ hold, pool }) => {
     const rootPool = pool.root;
-    rootPool.useStore('gc-hold-item');
+    rootPool.useStore('gc-hold-item', pool.pinia);
     pool.releaseStore('gc-hold-item');
     await expect(hold.hasGC()).resolves.toBe(false);
     rootPool.releaseStore('gc-hold-item');
