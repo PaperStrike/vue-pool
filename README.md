@@ -35,7 +35,7 @@ vue-pool 便为此而生，在 Pinia 的基础上，引入了一套追踪状态�
 与 Pinia defineStore 相似，使用 definePool 定义一个状态池：
 
 ```javascript
-import { definePool } from 'vue-pool';
+import { definePool } from 'vue-pool'
 
 // 定义一个文章状态池
 // 支持 option, setup 两种 Pinia store 定义风格
@@ -43,7 +43,7 @@ const usePostPool = definePool('post', {
   // 初始化比 Pinia 多了一个参数
   // id 作为文章 ID，用于区分不同文章资源
   // id 从哪里来呢？马上作介绍
-  state: (id) => ({
+  state: id => ({
     id,
     title: '',
     content: '',
@@ -53,17 +53,17 @@ const usePostPool = definePool('post', {
   actions: {
     // 拉取最新数据
     async refresh() {
-      const resp = await exampleApi.queryPost(this.id);
-      this.$patch(resp.data);
+      const resp = await exampleApi.queryPost(this.id)
+      this.$patch(resp.data)
     },
     // 点赞
     async like() {
-      await exampleApi.likePost(this.id);
-      this.hasLiked = true;
-      this.likedCount += 1;
+      await exampleApi.likePost(this.id)
+      this.hasLiked = true
+      this.likedCount += 1
     },
   },
-});
+})
 ```
 
 ## 使用
@@ -84,18 +84,18 @@ const postPool = usePostPool();
 
 ```javascript
 const loadPosts = async ({ page, limit }) => {
-  const resp = await exampleApi.queryPostList({ page, limit });
+  const resp = await exampleApi.queryPostList({ page, limit })
   return resp.list.map((data) => {
     // 类似 Pinia，同一个 ID 会返回同一个 store 实例
-    const post = postPool.useStore(post.id);
-    post.$patch(data);
-    return post;
-  });
-};
+    const post = postPool.useStore(post.id)
+    post.$patch(data)
+    return post
+  })
+}
 
-const posts = ref([]);
+const posts = ref([])
 loadPosts({ page: 1, limit: 10 })
-  .then((data) => posts.value = data);
+  .then(data => posts.value = data)
 ```
 
 ```html
@@ -109,10 +109,10 @@ loadPosts({ page: 1, limit: 10 })
 在本示例中，如果列表页已经取得了这篇文章的数据，详情页会直接展示已取得的部分，随后调用详情接口进行刷新，刷新的数据也会同步到列表页上。
 
 ```javascript
-const { id } = defineProps({ id: String });
+const { id } = defineProps({ id: String })
 
-const post = postPool.useStore(id);
-post.refresh();
+const post = postPool.useStore(id)
+post.refresh()
 ```
 
 ```html
@@ -141,19 +141,19 @@ post.refresh();
 
 ```javascript
 const loadPosts = async ({ page, limit }) => {
-  const resp = await exampleApi.queryPostList({ page, limit });
+  const resp = await exampleApi.queryPostList({ page, limit })
 
   // 刷新时，释放之前引用的文章
   if (page === 1) {
-    postPool.clear();
+    postPool.clear()
   }
 
   return resp.list.map((data) => {
-    const post = postPool.useStore(post.id);
-    post.$patch(data);
-    return post;
-  });
-};
+    const post = postPool.useStore(post.id)
+    post.$patch(data)
+    return post
+  })
+}
 ```
 
 文章详情页可以依赖组件卸载时的自动释放，无需额外处理。
@@ -165,34 +165,34 @@ const loadPosts = async ({ page, limit }) => {
 > 资源区分维度相同，可复用同一个池子。同样通过文章 ID 区分的边栏热门列表，复用文章池即可。
 
 ```javascript
-import { computed, ref } from 'vue';
-import { definePool } from 'vue-pool';
+import { computed, ref } from 'vue'
+import { definePool } from 'vue-pool'
 
 // 关注池
 export const useFollowPool = definePool('follow', {
   // 以用户 ID 区分
-  state: (userId) => ({
+  state: userId => ({
     userId,
     isFollowed: false,
   }),
   actions: {
     async startFollow() {
-      await exampleApi.follow(this.userId);
-      this.isFollowed = true;
+      await exampleApi.follow(this.userId)
+      this.isFollowed = true
     },
     async cancelFollow() {
-      await exampleApi.cancelFollow(this.userId);
-      this.isFollowed = false;
+      await exampleApi.cancelFollow(this.userId)
+      this.isFollowed = false
     },
   },
-});
+})
 
 // 文章池
 export const usePostPool = definePool('post', {
   // 以文章 ID 区分
   state: (id) => {
-    const followPool = useFollowPool();
-    const authorId = ref('');
+    const followPool = useFollowPool()
+    const authorId = ref('')
     return {
       id,
       authorId,
@@ -202,12 +202,12 @@ export const usePostPool = definePool('post', {
       likedCount: 0,
       // 组合关注池，取到对作者的关注状态
       followStore: computed(() => followPool.useStore(authorId.value)),
-    };
+    }
   },
   actions: {
     // ...
   },
-});
+})
 ```
 
 随后，文章相关的组件通过文章池 `useStore(postId).followStore` 拿到的关注状态及其动作，与关注相关的组件通过关注池 `useStore(userId)` 拿到的关注状态及其动作，就是同步统一的了。
@@ -217,25 +217,25 @@ export const usePostPool = definePool('post', {
 如果文章的作者 ID 确实经常变化，或者是组合其他一些 ID 确实常会变化的状态，可以转而使用 watch + releaseStore \/ clear 及时释放。同样地，类似组件卸载，不论是 option 还是 setup 风格的 store 定义，watch \/ computed 等侦听会自动在 store 销毁时停止，无需担心内存泄漏。
 
 ```javascript
-import { computed, ref } from 'vue';
-import { definePool } from 'vue-pool';
-import { useFollowPool } from '@/pools/follow';
+import { computed, ref } from 'vue'
+import { definePool } from 'vue-pool'
+import { useFollowPool } from '@/pools/follow'
 
 // 文章池
 export const usePostPool = definePool('post', {
   state: (id) => {
-    const followPool = useFollowPool();
-    const authorId = ref('');
-    const followStore = ref();
+    const followPool = useFollowPool()
+    const authorId = ref('')
+    const followStore = ref()
 
     // 由于涉及其他状态释放，computed / watchEffect 容易错误追踪依赖
     watch(() => authorId.value, (newAuthorId, oldAuthorId) => {
       // 也可以直接 followPool.clear();
       if (oldAuthorId) {
-        followPool.releaseStore(oldAuthorId);
+        followPool.releaseStore(oldAuthorId)
       }
-      followStore.value = followPool.useStore(newAuthorId);
-    });
+      followStore.value = followPool.useStore(newAuthorId)
+    })
 
     return {
       id,
@@ -245,10 +245,10 @@ export const usePostPool = definePool('post', {
       hasLiked: false,
       likedCount: 0,
       followStore,
-    };
+    }
   },
   actions: {
     // ...
   },
-});
+})
 ```
