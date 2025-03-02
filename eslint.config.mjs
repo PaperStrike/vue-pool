@@ -1,7 +1,9 @@
+import path from 'node:path'
+import { includeIgnoreFile } from '@eslint/compat'
 import eslint from '@eslint/js'
+import markdown from '@eslint/markdown'
 import stylistic from '@stylistic/eslint-plugin'
 import tseslint from 'typescript-eslint'
-import markdown from '@eslint/markdown'
 
 /**
  * Unnecessarily explicit type annotation until the upstream issue is resolved.
@@ -9,6 +11,7 @@ import markdown from '@eslint/markdown'
  * @type {import('typescript-eslint').ConfigArray}
  */
 const configs = tseslint.config(
+  includeIgnoreFile(path.resolve(import.meta.dirname, '.gitignore')),
   {
     files: ['**/*.?(m|c){js,ts}'],
     extends: [
