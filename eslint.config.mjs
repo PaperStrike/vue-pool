@@ -4,6 +4,7 @@ import eslint from '@eslint/js'
 import markdown from '@eslint/markdown'
 import stylistic from '@stylistic/eslint-plugin'
 import tseslint from 'typescript-eslint'
+import htmlProcessor from 'eslint-processor-html'
 
 /**
  * Unnecessarily explicit type annotation until the upstream issue is resolved.
@@ -54,6 +55,10 @@ const configs = tseslint.config(
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
     },
+  },
+  {
+    files: ['**/*.html', '**/*.htm'],
+    processor: htmlProcessor(),
   },
 )
 

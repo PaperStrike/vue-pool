@@ -72,9 +72,9 @@ const usePostPool = definePool('post', {
 
 ```html
 <script setup>
-import { usePostPool } from '@/pools/post';
+import { usePostPool } from '@/pools/post'
 
-const postPool = usePostPool();
+const postPool = usePostPool()
 </script>
 ```
 
