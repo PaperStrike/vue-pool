@@ -3,6 +3,7 @@
   "compilerOptions": {
     "allowJs": true,
     "noEmit": true,
+    "tsBuildInfoFile": "./build/cache/eslint.tsbuildinfo",
     "types": ["node"]
   },
   "include": [

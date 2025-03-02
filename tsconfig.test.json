@@ -2,9 +2,13 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "noEmit": true
+    "noEmit": true,
+    "tsBuildInfoFile": "./build/cache/test.tsbuildinfo"
   },
   "include": [
     "test"
+  ],
+  "references": [
+    { "path": "./tsconfig.build.json" }
   ]
 }
