@@ -25,17 +25,16 @@
     "CHANGELOG.*"
   ],
   "devDependencies": {
+    "@eslint/js": "^9.21.0",
     "@playwright/test": "^1.50.1",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
+    "@stylistic/eslint-plugin": "^4.1.0",
+    "@types/node": "^22.13.8",
     "esbuild": "~0.25.0",
-    "eslint": "^8.57.1",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-airbnb-typescript": "^18.0.0",
-    "eslint-import-resolver-typescript": "^3.8.3",
+    "eslint": "^9.21.0",
     "jest-leak-detector": "^29.7.0",
     "pinia": "^3.0.1",
-    "typescript": "^5.8.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.25.0",
     "vue": "^3.5.13"
   },
   "peerDependencies": {
