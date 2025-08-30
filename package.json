@@ -14,7 +14,7 @@
     "test": "playwright test",
     "build": "npm run build:type && npm run build:js",
     "build:type": "tsc -b --noCheck --emitDeclarationOnly",
-    "build:js": "esbuild src/index.ts --outdir=build --format=esm --packages=external --sourcemap --bundle --minify",
+    "build:js": "esbuild src/index.ts --outdir=build --target=es2022 --format=esm --packages=external --sourcemap --bundle --minify",
     "lint": "eslint --ext .ts,.tsx .",
     "prepare": "npm run build"
   },
