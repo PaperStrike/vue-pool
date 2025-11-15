@@ -32,11 +32,11 @@ const gcTest = test.extend<GCFixtures>({
       },
     })
   },
-  pool: [async ({ scope, hold }, use) => {
+  pool: [async ({ scope, hold, pinia }, use) => {
     const usePool = definePool('gc', {
       state: () => ({ hold: hold.get()! }),
     })
-    const pool = scope.run(usePool)!
+    const pool = scope.run(() => usePool(pinia))!
     pool.useStore('gc-hold-item')
     hold.release()
     await expect(hold.hasGC()).resolves.toBe(false)
