@@ -12,11 +12,11 @@
   },
   "scripts": {
     "test": "playwright test",
-    "build": "npm run build:type && npm run build:js",
+    "build": "pnpm build:type && pnpm build:js",
     "build:type": "tsc -b --noCheck --emitDeclarationOnly",
     "build:js": "esbuild src/index.ts --outdir=build --target=es2022 --format=esm --packages=external --sourcemap --bundle --minify",
     "lint": "eslint .",
-    "prepare": "npm run build"
+    "prepare": "pnpm build"
   },
   "repository": "github:PaperStrike/vue-pool",
   "license": "ISC",
