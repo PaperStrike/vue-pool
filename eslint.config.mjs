@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { defineConfig } from 'eslint/config'
 import { includeIgnoreFile } from '@eslint/compat'
 import eslint from '@eslint/js'
 import markdown from '@eslint/markdown'
@@ -6,12 +7,7 @@ import stylistic from '@stylistic/eslint-plugin'
 import tseslint from 'typescript-eslint'
 import htmlProcessor from 'eslint-processor-html'
 
-/**
- * Unnecessarily explicit type annotation until the upstream issue is resolved.
- * @see https://github.com/typescript-eslint/typescript-eslint/issues/10893
- * @type {import('typescript-eslint').ConfigArray}
- */
-const configs = tseslint.config(
+export default defineConfig(
   includeIgnoreFile(path.resolve(import.meta.dirname, '.gitignore')),
   {
     files: ['**/*.?(m|c){js,ts}'],
@@ -61,5 +57,3 @@ const configs = tseslint.config(
     processor: htmlProcessor(),
   },
 )
-
-export default configs
